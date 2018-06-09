@@ -16,7 +16,6 @@ readonly XENODIR="${BASEDIR}/xenomai"
 readonly IPIPEPATCH="${THISDIR}/patches/ipipe-core-4.9.80-arm-5.patch"
 readonly MODDIR="${BASEDIR}/modules"
 
-
 error_exit()
 {
   echo -e "${RED}$(basename $0): $1${NOCOLOR}" >&2
