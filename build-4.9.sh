@@ -7,13 +7,14 @@ readonly RED='\033[0;31m'
 readonly NOCOLOR='\033[0m'
 
 readonly NUM_CORES=$(cat /proc/cpuinfo | grep processor | wc -l)
+readonly LINUX_4_9_51="7b44f96b033c1ec01b4c34350865130058b596"
 
 readonly THISDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly BASEDIR="/tmp/rpi"
 readonly TOOLSDIR="${BASEDIR}/tools"
 readonly LINUXDIR="${BASEDIR}/linux"
 readonly XENODIR="${BASEDIR}/xenomai"
-readonly IPIPEPATCH="${THISDIR}/patches/ipipe-core-4.9.80-arm-5.patch"
+readonly IPIPEPATCH="${THISDIR}/patches/ipipe-4.9.51-arm.patch"
 readonly MODDIR="${BASEDIR}/modules"
 
 error_exit()
@@ -23,11 +24,17 @@ error_exit()
   exit 1
 }
 
+# Install necessary dependencies
 install_deps()
 {
-  sudo apt-get install -y gcc-4.7-arm-linux-gnueabi libncurses5-dev bc
+  if ! sudo apt-get install -y gcc-4.7-arm-linux-gnueabi libncurses5-dev bc; then
+    error_exit "Failed to install build dependencies"
+  fi
+  # Revoke sudo for improved security.
+  sudo -k
 }
 
+# Download the Raspberry Pi Linux kernel and Xenomai source.
 get_sources()
 {
   if ! rm -rf ${BASEDIR}; then
@@ -44,9 +51,13 @@ get_sources()
   fi
 
   echo "Cloning linux kernel source"
-  if ! git clone --depth 1 --branch rpi-4.9.y https://github.com/raspberrypi/linux.git ${LINUXDIR}; then
+  if ! git clone https://github.com/raspberrypi/linux.git ${LINUXDIR}; then
     error_exit "Failed to clone Raspberry Pi Linux into ${LINUXDIR}"
   fi
+
+  pushd ${LINUXDIR}
+  git checkout ${LINUX_4_9_51}
+  popd
 
   echo "Cloning Xenomai source"
   if ! git clone --depth 1 --branch stable-3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
@@ -54,6 +65,7 @@ get_sources()
   fi
 }
 
+# Uses Xenomai's script to patch the kernel.
 prepare_kernel()
 {
   echo "Patching linux kernel"
@@ -66,6 +78,7 @@ prepare_kernel()
   fi
 }
 
+# Builds an image of the linux kernel.
 build_kernel()
 {
   KERNEL=kernel7
@@ -83,6 +96,11 @@ build_kernel()
     error_exit "Failed to make default configuration for Raspberry Pi 3"
   fi
 
+  echo "Launching configuration utility."
+  if ! make ${ARM_ARGS} menuconfig; then
+    error_exit "Failed to configure through menuconfig"
+  fi
+
   echo "Building Linux"
   if ! make ${ARM_ARGS} zImage modules dtbs; then
     error_exit "Failed to build linux kernel"
@@ -94,30 +112,11 @@ build_kernel()
   fi
 }
 
-deploy_kernel()
-{
-  if ! cp arch/arm/boot/dts/*.dtb ${BOOTDIR}/; then
-    error_exit "Failed to copy dtbs to boot directory"
-  fi
-
-  if ! cp arch/arm/boot/dts/overlays/*.dtb* ${BOOTDIR}/overlays/; then
-    error_exit "Failed to copy overlay dtbs to boot directory"
-  fi
-
-  if ! cp arch/arm/boot/dts/overlays/README ${BOOTDIR}/overlays/; then
-    error_exit "Failed to copy overlays README to boot directory"
-  fi
-
-  if ! cp arch/arm/boot/zImage ${BOOTDIR}/${KERNEL}.img; then
-    error_exit "Failed to copy kernel image to boot directory"
-  fi
-}
-
 main()
 {
   pushd .
-  # install-deps
-  get_sources
+  # install_deps
+  # get_sources
   prepare_kernel
   build_kernel
   popd
