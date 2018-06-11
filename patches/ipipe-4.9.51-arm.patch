@@ -12713,27 +12713,6 @@ index a035e1c..f66d29b 100644
  }
  
  IRQCHIP_DECLARE(bcm2835_armctrl_ic, "brcm,bcm2835-armctrl-ic",
-diff --git a/drivers/irqchip/irq-bcm2835.c.rej b/drivers/irqchip/irq-bcm2835.c.rej
-new file mode 100644
-index 0000000..4c90099
---- /dev/null
-+++ b/drivers/irqchip/irq-bcm2835.c.rej
-@@ -0,0 +1,15 @@
-+--- drivers/irqchip/irq-bcm2835.c
-++++ drivers/irqchip/irq-bcm2835.c
-+@@ -110,7 +110,11 @@ static void armctrl_unmask_irq(struct irq_data *d)
-+ static struct irq_chip armctrl_chip = {
-+ 	.name = "ARMCTRL-level",
-+ 	.irq_mask = armctrl_mask_irq,
-+-	.irq_unmask = armctrl_unmask_irq
-++	.irq_unmask = armctrl_unmask_irq,
-++#ifdef CONFIG_IPIPE
-++	.irq_hold = armctrl_mask_irq,
-++	.irq_release = armctrl_unmask_irq,
-++#endif
-+ };
-+ 
-+ static int armctrl_xlate(struct irq_domain *d, struct device_node *ctrlr,
 diff --git a/drivers/irqchip/irq-bcm2836.c b/drivers/irqchip/irq-bcm2836.c
 index 6dccdf9..979b276 100644
 --- a/drivers/irqchip/irq-bcm2836.c
@@ -12846,29 +12825,6 @@ index 6dccdf9..979b276 100644
  	}
  }
  
-diff --git a/drivers/irqchip/irq-bcm2836.c.rej b/drivers/irqchip/irq-bcm2836.c.rej
-new file mode 100644
-index 0000000..6b44410
---- /dev/null
-+++ b/drivers/irqchip/irq-bcm2836.c.rej
-@@ -0,0 +1,17 @@
-+--- drivers/irqchip/irq-bcm2836.c
-++++ drivers/irqchip/irq-bcm2836.c
-+@@ -205,12 +235,12 @@ __exception_irq_entry bcm2836_arm_irqchip_handle_irq(struct pt_regs *regs)
-+ 		u32 ipi = ffs(mbox_val) - 1;
-+ 
-+ 		writel(1 << ipi, mailbox0);
-+-		handle_IPI(ipi, regs);
-++		ipipe_handle_multi_ipi(ipi, regs);
-+ #endif
-+ 	} else if (stat) {
-+ 		u32 hwirq = ffs(stat) - 1;
-+ 
-+-		handle_domain_irq(intc.domain, hwirq, regs);
-++		ipipe_handle_domain_irq(intc.domain, hwirq, regs);
-+ 	}
-+ }
-+ 
 diff --git a/drivers/irqchip/irq-bcm7120-l2.c b/drivers/irqchip/irq-bcm7120-l2.c
 index 64c2692..8863172 100644
 --- a/drivers/irqchip/irq-bcm7120-l2.c
@@ -13934,48 +13890,6 @@ index 81a66cb..13d3994 100644
  		}
  	}
  
-diff --git a/drivers/pinctrl/bcm/pinctrl-bcm2835.c.rej b/drivers/pinctrl/bcm/pinctrl-bcm2835.c.rej
-new file mode 100644
-index 0000000..c103887
---- /dev/null
-+++ b/drivers/pinctrl/bcm/pinctrl-bcm2835.c.rej
-@@ -0,0 +1,36 @@
-+--- drivers/pinctrl/bcm/pinctrl-bcm2835.c
-++++ drivers/pinctrl/bcm/pinctrl-bcm2835.c
-+@@ -107,7 +108,11 @@ struct bcm2835_pinctrl {
-+ 	struct pinctrl_gpio_range gpio_range;
-+ 
-+ 	struct bcm2835_gpio_irqdata irq_data[BCM2835_NUM_BANKS];
-+-	spinlock_t irq_lock[BCM2835_NUM_BANKS];
-++#ifdef CONFIG_IPIPE
-++	ipipe_spinlock_t irq_lock[BCM2835_NUM_BANKS];
-++#else
-++	raw_spinlock_t irq_lock[BCM2835_NUM_BANKS];
-++#endif
-+ };
-+ 
-+ static struct lock_class_key gpio_lock_class;
-+@@ -408,11 +413,19 @@ static irqreturn_t bcm2835_gpio_irq_handler(int irq, void *dev_id)
-+ 		gpio = (32 * bank) + offset;
-+ 		type = pc->irq_type[gpio];
-+ 
-+-		generic_handle_irq(irq_linear_revmap(pc->irq_domain, gpio));
-++		ipipe_handle_demuxed_irq(irq_linear_revmap(pc->irq_domain, gpio));
-+ 	}
-+ 	return events ? IRQ_HANDLED : IRQ_NONE;
-+ }
-+ 
-++static void gpio_irq_cascade(struct irq_desc *desc)
-++{
-++#ifdef CONFIG_IPIPE
-++	unsigned int irq = irq_desc_get_irq(desc);
-++	bcm2835_gpio_irq_handler(irq, irq_get_handler_data(irq));
-++#endif
-++}
-++
-+ static inline void __bcm2835_gpio_irq_config(struct bcm2835_pinctrl *pc,
-+ 	unsigned reg, unsigned offset, bool enable)
-+ {
 diff --git a/drivers/pinctrl/pinctrl-at91.c b/drivers/pinctrl/pinctrl-at91.c
 index 9f09041..c3a1424 100644
 --- a/drivers/pinctrl/pinctrl-at91.c

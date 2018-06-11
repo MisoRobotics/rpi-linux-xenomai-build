@@ -69,12 +69,30 @@ get_sources()
 prepare_kernel()
 {
   echo "Patching linux kernel"
+  if ! cd ${LINUXDIR}; then
+    error_exit "Failed to cd to linux source tree at ${LINUXDIR}"
+  fi
+
+  if ! git reset --hard HEAD; then
+    error_exit "Failed to hard-reset linux source code"
+  fi
+
+  if ! git clean -fd; then
+    error_exit "Failed to clean out linux source tree"
+  fi
+
   if ! cd ${XENODIR}; then
     error_exit "Failed to cd to xenomai source tree at ${XENODIR}"
   fi
 
   if ! ${XENODIR}/scripts/prepare-kernel.sh --linux="${LINUXDIR}" --ipipe="${IPIPEPATCH}" --arch=arm; then
     error_exit "Xenomai prepare-kernel.sh script failed"
+  fi
+
+  # Check for patch rejections.
+  local patch_rejections="$(find ${LINUXDIR} -type f -name *.rej | wc -l)";
+  if [ "${patch_rejections}" != "0" ]; then
+    error_exit "Failed to properly patch system, ${patch_rejections} rejected file(s)"
   fi
 }
 
@@ -115,8 +133,8 @@ build_kernel()
 main()
 {
   pushd .
-  # install_deps
-  # get_sources
+  #install_deps
+  #get_sources
   prepare_kernel
   build_kernel
   popd
