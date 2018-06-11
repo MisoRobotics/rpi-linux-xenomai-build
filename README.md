@@ -15,3 +15,5 @@ git clone https://github.com/MisoRobotics/rpi-linux-xenomai-build.git /tmp/rpi-l
 ```
 /tmp/rpi-linux-xenomai-build/deploy-4.9.sh ${RPI_SD_CARD_BOOT_DIR}
 ```
+
+After deploying the kernel, you can then install ROS on the Raspberry Pi: https://github.com/MisoRobotics/rosberry-pi-setup
