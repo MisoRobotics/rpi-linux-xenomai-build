@@ -25,6 +25,23 @@ check_system()
   fi
 }
 
+# Increases the size of swap memory for building ROS in parallel.
+configure_swap()
+{
+    if ! sudo -H sed -i 's/\(CONF_SWAPSIZE=\)[0-9]\+/\12048/g' /etc/dphys-swapfile; then
+      error_exit "Failed to modify swap file configuration"
+    fi
+
+    if ! sudo dphys-swapfile setup; then
+      sudo dphys-swapfile swapon
+      error_exit "Failed to reconfigure swap file"
+    fi
+
+    if ! sudo dphys-swapfile swapon; then
+      error_exit "Failed to enable swap. Try sudo dphys-swapfile swapon."
+    fi
+}
+
 # Install necessary dependencies.
 install_deps()
 {
@@ -49,7 +66,9 @@ build_libs()
     error_exit "Failed to bootstrap xenomai lib build"
   fi
 
-  rm -rf "${XENOBUILDDIR}"
+  if ! rm -rf "${XENOBUILDDIR}"; then
+    error_exit "Failed to rmdir ${XENOBUILDDIR}"
+  fi
 
   if ! mkdir -v "${XENOBUILDDIR}"; then
     error_exit "Failed to mkdir ${XENOBUILDDIR}"
@@ -66,9 +85,11 @@ build_libs()
     error_exit "Failed to configure xenomai libs"
   fi
 
-  local pkg="libxenomai"
-  sudo make install
-  if [ $? -ne 0 ]; then
+  if ! make -j4; then
+    error_exit "Failed to build xenomai libs"
+  fi
+
+  if ! sudo -H make install; then
     error_exit "Failed to make install xenomai libs"
   fi
 }
@@ -77,6 +98,7 @@ main()
 {
   pushd .
   check_system
+  configure_swap
   install_deps
   build_libs
   popd
