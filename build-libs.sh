@@ -66,7 +66,7 @@ build_libs()
     error_exit "Failed to bootstrap xenomai lib build"
   fi
 
-  if ! rm -rf "${XENOBUILDDIR}"; then
+  if ! sudo rm -rf "${XENOBUILDDIR}"; then
     error_exit "Failed to rmdir ${XENOBUILDDIR}"
   fi
 
@@ -80,7 +80,8 @@ build_libs()
 
   ${XENODIR}/configure CFLAGS="-march=armv7-a" LDFLAGS="-march=armv7-a" \
             --with-core=cobalt \
-            --enable-debug=symbols
+            --enable-debug=symbols \
+            --enable-smp
   if [ $? -ne 0 ]; then
     error_exit "Failed to configure xenomai libs"
   fi

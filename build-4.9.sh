@@ -7,7 +7,7 @@ readonly RED='\033[0;31m'
 readonly NOCOLOR='\033[0m'
 
 readonly NUM_CORES=$(cat /proc/cpuinfo | grep processor | wc -l)
-readonly LINUX_4_9_51="7b44f96b033c1ec01b4c34350865130058b596"
+readonly LINUX_4_9_51="7b44f96b033c1ec01b4c34350865130058fdb596"
 
 readonly THISDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly BASEDIR="/tmp/rpi"
