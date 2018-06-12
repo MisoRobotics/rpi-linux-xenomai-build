@@ -2,9 +2,11 @@
 #
 # Builds Xenomai on the Raspberry Pi.
 
-readonly RED='\033[0;31m'
+readonly WHITE='\033[37;1m'
+readonly REDBOLD='\033[31;1m'
 readonly NOCOLOR='\033[0m'
 
+readonly NUM_CORES="$(grep -c ^processor /proc/cpuinfo)"
 readonly ARCH="$(dpkg --print-architecture)"
 readonly BASEDIR="/tmp/rpi"
 readonly XENODIR="${BASEDIR}/xenomai"
@@ -12,7 +14,7 @@ readonly XENOBUILDDIR="${XENODIR}/build"
 
 error_exit()
 {
-  echo -e "${RED}$(basename $0): $1${NOCOLOR}" >&2
+  echo -e "${REDBOLD}$(basename $0)${NOCOLOR}:${WHITE} $1${NOCOLOR}" >&2
   popd
   exit 1
 }
@@ -59,11 +61,11 @@ install_deps()
 build_libs()
 {
   if ! cd "${XENODIR}"; then
-    error_exit "Failed to cd to xenomai source tree at  ${XENODIR}, did you copy the repo from your desktop?"
+    error_exit "Failed to cd to xenomai source tree at ${XENODIR}, did you copy the repo from your desktop?"
   fi
 
   if ! ./scripts/bootstrap; then
-    error_exit "Failed to bootstrap xenomai lib build"
+    error_exit "Failed to bootstrap libxenomai build at source tree ${XENODIR}"
   fi
 
   if ! sudo rm -rf "${XENOBUILDDIR}"; then
@@ -83,15 +85,15 @@ build_libs()
             --enable-debug=symbols \
             --enable-smp
   if [ $? -ne 0 ]; then
-    error_exit "Failed to configure xenomai libs"
+    error_exit "Failed to configure libxenomai from source tree ${XENODIR}"
   fi
 
-  if ! make -j4; then
-    error_exit "Failed to build xenomai libs"
+  if ! make -j${NUM_CORES}; then
+    error_exit "Failed to build libxenomai in build dir ${XENOBUILDDIR}"
   fi
 
   if ! sudo -H make install; then
-    error_exit "Failed to make install xenomai libs"
+    error_exit "Failed to make install libxenomai in build dir ${XENOBUILDDIR}}"
   fi
 }
 
