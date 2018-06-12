@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NOTE(NK): Is this better than /bin/bash?
 #
 # Gets the source for Raspberry Pi Linux 4.14, patches it with I-Pipe
 # and Xenomai, and builds the kernel.
@@ -7,9 +8,11 @@ readonly RED='\033[0;31m'
 readonly NOCOLOR='\033[0m'
 
 readonly NUM_CORES=$(cat /proc/cpuinfo | grep processor | wc -l)
+# NOTE(NK): 'grep -c ^processor /proc/cpuinfo' is probably cleaner
 readonly LINUX_4_9_51="7b44f96b033c1ec01b4c34350865130058fdb596"
 
 readonly THISDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# NOTE(NK): '"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"' is cleaner
 readonly BASEDIR="/tmp/rpi"
 readonly TOOLSDIR="${BASEDIR}/tools"
 readonly LINUXDIR="${BASEDIR}/linux"
@@ -21,6 +24,7 @@ readonly MODDIR="${BASEDIR}/modules"
 
 error_exit()
 {
+  # NOTE(NK): Really nitpicky, but maybe bold would look better for the basename
   echo -e "${RED}$(basename $0): $1${NOCOLOR}" >&2
   popd
   exit 1
@@ -37,6 +41,9 @@ install_deps()
 }
 
 # Download the Raspberry Pi Linux kernel and Xenomai source.
+#
+# NOTE(NK): The google bash guide also says to specify what env variables
+# are used or modified, and what the function returns
 get_sources()
 {
   if ! rm -rf ${BASEDIR}; then
@@ -50,11 +57,14 @@ get_sources()
   echo "Cloning Raspberry Pi tools"
   if ! git clone https://github.com/raspberrypi/tools.git ${TOOLSDIR}; then
     error_exit "Failed to clone Raspberry Pi tools"
+    # NOTE(NK): Add "into ${TOOLSDIR}" for consistencty?
   fi
 
   echo "Cloning linux kernel source"
   if ! git clone https://github.com/raspberrypi/linux.git ${LINUXDIR}; then
     error_exit "Failed to clone Raspberry Pi Linux into ${LINUXDIR}"
+    # NOTE(NK): Is it possible to clone a branch instead of a commit so you
+    # can do a shallow clone?
   fi
 
   pushd ${LINUXDIR}
@@ -64,12 +74,14 @@ get_sources()
   echo "Cloning Xenomai source"
   if ! git clone --depth 1 --branch stable-3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
     error_exit "Failed to clone Xenomai stable-3.0.x source"
+    # NOTE(NK): into ${XENODIR}
   fi
 }
 
 # Uses Xenomai's script to patch the kernel.
 prepare_kernel()
 {
+  # NOTE(NK): So much error handling XD
   echo "Patching linux kernel"
   if ! cd ${LINUXDIR}; then
     error_exit "Failed to cd to linux source tree at ${LINUXDIR}"
@@ -132,6 +144,7 @@ build_kernel()
   fi
 }
 
+# NOTE(NK): This looks obsolesced by build-libs.sh
 # Cross-compiles the xenomai libraries.
 # TODO(RWS): Doesn't package /dev entries.
 build_libs()
@@ -186,6 +199,7 @@ main()
   prepare_kernel
   build_kernel
   # build_libs
+  # NOTE(NK): Why is this commented out
   popd
 }
 
