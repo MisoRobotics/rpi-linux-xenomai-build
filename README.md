@@ -35,7 +35,7 @@ scp -r /tmp/rpi/xenomai pi@raspberrypi.local:/tmp/rpi
 scp -r /tmp/rpi-linux-xenomai-build /tmp
 ```
 2. Connect to the Raspberry Pi for the rest of the steps:
-````
+```
 ssh pi@raspberrypi.local
 ```
 3. Run the `build-libs.sh` script to build and install libxenomai:
