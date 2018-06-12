@@ -86,6 +86,7 @@ build_libs()
     error_exit "Failed to configure xenomai libs"
   fi
 
+  # NOTE(NK): Get processor number dynamically?
   if ! make -j4; then
     error_exit "Failed to build xenomai libs"
   fi
