@@ -54,13 +54,9 @@ get_sources()
   fi
 
   echo "Cloning linux kernel source"
-  if ! git clone https://github.com/raspberrypi/linux.git ${LINUXDIR}; then
+  if ! git clone --depth 1 --branch rpi-4.9.51 https://github.com/MisoRobotics/raspberrypi-linux.git ${LINUXDIR}; then
     error_exit "Failed to clone Raspberry Pi Linux into ${LINUXDIR}"
   fi
-
-  pushd ${LINUXDIR}
-  git checkout ${LINUX_4_9_51}
-  popd
 
   echo "Cloning Xenomai source"
   if ! git clone --depth 1 --branch stable-3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
