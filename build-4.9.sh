@@ -14,6 +14,8 @@ readonly BASEDIR="/tmp/rpi"
 readonly TOOLSDIR="${BASEDIR}/tools"
 readonly LINUXDIR="${BASEDIR}/linux"
 readonly XENODIR="${BASEDIR}/xenomai"
+readonly XENOBUILDDIR="${XENODIR}/build"
+readonly XENOINSTALLDIR="${XENODIR}/install"
 readonly IPIPEPATCH="${THISDIR}/patches/ipipe-4.9.51-arm.patch"
 readonly MODDIR="${BASEDIR}/modules"
 
@@ -130,13 +132,60 @@ build_kernel()
   fi
 }
 
+# Cross-compiles the xenomai libraries.
+# TODO(RWS): Doesn't package /dev entries.
+build_libs()
+{
+  if ! cd "${XENODIR}"; then
+    error_exit "Failed to cd to xenomai source tree at  ${XENODIR}"
+  fi
+
+  if ! ./scripts/bootstrap; then
+    error_exit "Failed to bootstrap xenomai lib build"
+  fi
+
+  rm -rf "${XENOBUILDDIR}"
+
+  if ! mkdir -v "${XENOBUILDDIR}"; then
+    error_exit "Failed to mkdir ${XENOBUILDDIR}"
+  fi
+
+  if ! cd "${XENOBUILDDIR}"; then
+    error_exit "Failed to cd to xenomai build root at ${XENOBUILDDIR}"
+  fi
+
+  ${XENODIR}/configure CFLAGS="-march=armv7-a" LDFLAGS="-march=armv7-a" \
+            --host=arm-linux-gnueabi \
+            --with-core=cobalt \
+            --enable-debug=symbols
+  if [ $? -ne 0 ]; then
+    error_exit "Failed to configure xenomai libs"
+  fi
+
+  local pkg="libxenomai"
+  sudo checkinstall \
+       --arch=armhf \
+       --default \
+       --install=no \
+       --nodoc \
+       --pkgname $pkg \
+       --pkgsource $pkg \
+       --provides $pkg \
+       --pkgversion "3.0.6" \
+       make install
+  if [ $? -ne 0 ]; then
+    error_exit "Failed to make install xenomai libs"
+  fi
+}
+
 main()
 {
   pushd .
-  #install_deps
-  #get_sources
+  install_deps
+  get_sources
   prepare_kernel
   build_kernel
+  # build_libs
   popd
 }
 
