@@ -3,13 +3,14 @@
 # Gets the source for Raspberry Pi Linux 4.14, patches it with I-Pipe
 # and Xenomai, and builds the kernel.
 
-readonly RED='\033[0;31m'
+readonly WHITE='\033[37;1m'
+readonly REDBOLD='\033[31;1m'
 readonly NOCOLOR='\033[0m'
 
-readonly NUM_CORES=$(cat /proc/cpuinfo | grep processor | wc -l)
+readonly NUM_CORES="$(grep -c ^processor /proc/cpuinfo)"
 readonly LINUX_4_9_51="7b44f96b033c1ec01b4c34350865130058fdb596"
 
-readonly THISDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly THISDIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly BASEDIR="/tmp/rpi"
 readonly TOOLSDIR="${BASEDIR}/tools"
 readonly LINUXDIR="${BASEDIR}/linux"
@@ -21,7 +22,7 @@ readonly MODDIR="${BASEDIR}/modules"
 
 error_exit()
 {
-  echo -e "${RED}$(basename $0): $1${NOCOLOR}" >&2
+  echo -e "${REDBOLD}$(basename $0)${NOCOLOR}:${WHITE} $1${NOCOLOR}" >&2
   popd
   exit 1
 }
@@ -49,21 +50,17 @@ get_sources()
 
   echo "Cloning Raspberry Pi tools"
   if ! git clone https://github.com/raspberrypi/tools.git ${TOOLSDIR}; then
-    error_exit "Failed to clone Raspberry Pi tools"
+    error_exit "Failed to clone Raspberry Pi tools into ${TOOLSDIR}"
   fi
 
   echo "Cloning linux kernel source"
-  if ! git clone https://github.com/raspberrypi/linux.git ${LINUXDIR}; then
+  if ! git clone --depth 1 --branch rpi-4.9.51 https://github.com/MisoRobotics/raspberrypi-linux.git ${LINUXDIR}; then
     error_exit "Failed to clone Raspberry Pi Linux into ${LINUXDIR}"
   fi
 
-  pushd ${LINUXDIR}
-  git checkout ${LINUX_4_9_51}
-  popd
-
   echo "Cloning Xenomai source"
   if ! git clone --depth 1 --branch stable-3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
-    error_exit "Failed to clone Xenomai stable-3.0.x source"
+    error_exit "Failed to clone Xenomai stable-3.0.x source into ${XENODIR}"
   fi
 }
 
@@ -76,11 +73,11 @@ prepare_kernel()
   fi
 
   if ! git reset --hard HEAD; then
-    error_exit "Failed to hard-reset linux source code"
+    error_exit "Failed to hard-reset linux source code at ${LINUXDIR}"
   fi
 
   if ! git clean -fd; then
-    error_exit "Failed to clean out linux source tree"
+    error_exit "Failed to clean out linux source tree at ${LINUXDIR}"
   fi
 
   if ! cd ${XENODIR}; then
@@ -113,38 +110,41 @@ build_kernel()
 
   echo "Copying default configuration for bcm2709 (Raspberry Pi 2/3)"
   if ! make ${ARM_ARGS} bcm2709_defconfig; then
-    error_exit "Failed to make default configuration for Raspberry Pi 3"
+    error_exit "Failed to copy default Linux kernel configuration for Raspberry Pi 3 in ${LINUXDIR}"
   fi
 
   echo "Launching configuration utility."
+  # TODO(RWS): This makes the process interactive so it should probably
+  # only run if an --interactive or -i flag is passed.
   if ! make ${ARM_ARGS} menuconfig; then
-    error_exit "Failed to configure through menuconfig"
+    error_exit "Failed to configure Linux kernel through menuconfig in ${LINUXDIR}"
   fi
 
   echo "Building Linux"
   if ! make ${ARM_ARGS} zImage modules dtbs; then
-    error_exit "Failed to build linux kernel"
+    error_exit "Failed to build Linux kernel in ${LINUXDIR}"
   fi
 
   echo "Installing modules to ${MODDIR}"
   if ! make modules_install ${ARM_ARGS} INSTALL_MOD_PATH=${MODDIR}; then
-    error_exit "Failed to make modules_install"
+    error_exit "Failed to make modules_install in ${MODDIR}"
   fi
 }
 
 # Cross-compiles the xenomai libraries.
-# TODO(RWS): Doesn't package /dev entries.
 build_libs()
 {
   if ! cd "${XENODIR}"; then
-    error_exit "Failed to cd to xenomai source tree at  ${XENODIR}"
+    error_exit "Failed to cd to xenomai source tree at ${XENODIR}"
   fi
 
   if ! ./scripts/bootstrap; then
-    error_exit "Failed to bootstrap xenomai lib build"
+    error_exit "Failed to bootstrap libxenomai build at ${XENODIR}"
   fi
 
-  rm -rf "${XENOBUILDDIR}"
+  if ! rm -rf "${XENOBUILDDIR}"; then
+    error_exit "Failed to rmdir ${XENOBUILDDIR}"
+  fi
 
   if ! mkdir -v "${XENOBUILDDIR}"; then
     error_exit "Failed to mkdir ${XENOBUILDDIR}"
@@ -159,7 +159,7 @@ build_libs()
             --with-core=cobalt \
             --enable-debug=symbols
   if [ $? -ne 0 ]; then
-    error_exit "Failed to configure xenomai libs"
+    error_exit "Failed to configure libxenomai from source tree ${XENOBUILDDIR}"
   fi
 
   local pkg="libxenomai"
@@ -185,6 +185,8 @@ main()
   get_sources
   prepare_kernel
   build_kernel
+  # TODO(RWS): Doesn't package /dev entries so temporarily disabled.
+  # Instead, use the build-libs.sh script on the Raspberry Pi.
   # build_libs
   popd
 }
