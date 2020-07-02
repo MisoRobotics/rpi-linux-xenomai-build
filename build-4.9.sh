@@ -59,8 +59,8 @@ get_sources()
   fi
 
   echo "Cloning Xenomai source"
-  if ! git clone --depth 1 --branch stable-3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
-    error_exit "Failed to clone Xenomai stable-3.0.x source into ${XENODIR}"
+  if ! git clone --depth 1 --branch stable/v3.0.x https://git.xenomai.org/xenomai-3.git ${XENODIR}; then
+    error_exit "Failed to clone Xenomai stable/v3.0.x source into ${XENODIR}"
   fi
 }
 
